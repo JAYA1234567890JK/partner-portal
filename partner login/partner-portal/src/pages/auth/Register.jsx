@@ -1,0 +1,22 @@
+import { useState } from 'react';
+import { Alert, Box, Button, Checkbox, FormControl, FormControlLabel, FormHelperText, InputLabel, Link, MenuItem, Select, Snackbar, Stack, TextField, Typography } from '@mui/material';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
+import AuthLayout from '../../layouts/AuthLayout';
+import PasswordField from '../../components/common/PasswordField';
+import { savePartnerRegistration } from '../../services/authService';
+import { validateRegistration } from '../../utils/validation';
+
+const initialValues = { fullName: '', businessName: '', email: '', mobile: '', password: '', confirmPassword: '', businessType: '', city: '', state: '', terms: false };
+const types = ['Hotel', 'Lodge', 'Resort', 'Guest House', 'Service Apartment'];
+function Register() {
+  const navigate = useNavigate(); const [values, setValues] = useState(initialValues); const [errors, setErrors] = useState({}); const [notice, setNotice] = useState(false);
+  function update(field, value) { setValues((current) => ({ ...current, [field]: value })); setErrors((current) => ({ ...current, [field]: undefined })); }
+  function submit(event) { event.preventDefault(); const nextErrors = validateRegistration(values); setErrors(nextErrors); if (Object.keys(nextErrors).length) return; savePartnerRegistration(values); setNotice(true); window.setTimeout(() => navigate('/partner/login'), 1400); }
+  const field = (name, label, props = {}) => <TextField label={label} value={values[name]} onChange={(event) => update(name, event.target.value)} error={Boolean(errors[name])} helperText={errors[name]} fullWidth {...props} />;
+  return <AuthLayout><Box className="auth-heading"><Typography className="eyebrow">LET’S PARTNER UP</Typography><Typography variant="h4" sx={{ mt: 1.1 }}>Grow with Roomly</Typography><Typography color="text.secondary" sx={{ mt: 1 }}>Create your partner account to get started.</Typography></Box>
+    <Box component="form" onSubmit={submit} sx={{ mt: 2.75 }}><Stack spacing={1.8}><Box className="form-grid">{field('fullName', 'Full name', { autoComplete: 'name', required: true })}{field('businessName', 'Business / property name', { required: true })}</Box><Box className="form-grid">{field('email', 'Email address', { type: 'email', autoComplete: 'email', required: true })}{field('mobile', 'Mobile number', { type: 'tel', autoComplete: 'tel', required: true })}</Box><Box className="form-grid"><PasswordField label="Password" value={values.password} onChange={(event) => update('password', event.target.value)} error={Boolean(errors.password)} helperText={errors.password || 'At least 8 characters'} required /><PasswordField label="Confirm password" value={values.confirmPassword} onChange={(event) => update('confirmPassword', event.target.value)} error={Boolean(errors.confirmPassword)} helperText={errors.confirmPassword} required /></Box><Box className="form-grid"><FormControl fullWidth error={Boolean(errors.businessType)}><InputLabel>Business type</InputLabel><Select label="Business type" value={values.businessType} onChange={(event) => update('businessType', event.target.value)}>{types.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}</Select>{errors.businessType && <FormHelperText>{errors.businessType}</FormHelperText>}</FormControl>{field('city', 'City', { required: true })}</Box>{field('state', 'State', { required: true })}<Box><FormControlLabel control={<Checkbox checked={values.terms} onChange={(event) => update('terms', event.target.checked)} />} label={<Typography variant="body2" color="text.secondary">I agree to the <Link href="#terms" underline="hover" fontWeight={700}>Terms & Conditions</Link></Typography>} />{errors.terms && <FormHelperText error>{errors.terms}</FormHelperText>}</Box><Button type="submit" variant="contained" size="large" endIcon={<ArrowForwardRoundedIcon />} fullWidth sx={{ minHeight: 50 }}>Create partner account</Button></Stack></Box>
+    <Box className="auth-switch"><Typography color="text.secondary" variant="body2">Already have an account?</Typography><Link component={RouterLink} to="/partner/login" underline="hover" fontWeight={700}>Log in</Link></Box><Snackbar open={notice} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}><Alert severity="success" variant="filled" sx={{ width: '100%' }}>Your partner account has been created.</Alert></Snackbar>
+  </AuthLayout>;
+}
+export default Register;
