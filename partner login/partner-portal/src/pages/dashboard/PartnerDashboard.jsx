@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { Alert, Avatar, Box, Button, Chip, Grid, LinearProgress, Paper, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import { Alert, Avatar, Box, Button, Chip, CircularProgress, Grid, LinearProgress, Paper, Stack, Step, StepLabel, Stepper, Typography } from '@mui/material';
 import AddHomeWorkRoundedIcon from '@mui/icons-material/AddHomeWorkRounded';
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded';
 import EventAvailableRoundedIcon from '@mui/icons-material/EventAvailableRounded';
@@ -10,20 +11,23 @@ import SellRoundedIcon from '@mui/icons-material/SellRounded';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link as RouterLink } from 'react-router-dom';
 import PartnerLayout from '../../layouts/PartnerLayout';
-import { getActivePartner, getBookings, getPayments, getProperties } from '../../services/partnerData';
+import { getPartnerDashboard } from '../../services/partnerApi';
 
 const money = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`;
 const statusColor = (status) => status === 'Approved' || status === 'Completed' || status === 'Paid' ? 'success' : status === 'Pending Approval' || status === 'Pending' || status === 'New' ? 'warning' : 'default';
+const emptyRows = [];
 function Metric({ label, value, note, color, icon }) { return <Paper sx={{ p: 2.25, height: '100%' }}><Stack direction="row" justifyContent="space-between" alignItems="flex-start"><Box><Typography variant="body2" color="text.secondary">{label}</Typography><Typography variant="h4" sx={{ mt: .8 }}>{value}</Typography><Typography variant="caption" color="text.secondary">{note}</Typography></Box><Avatar sx={{ bgcolor: color, color: '#fff', width: 42, height: 42 }}>{icon}</Avatar></Stack></Paper>; }
 function EmptyChart({ children }) { return <Box sx={{ height: 225, display: 'grid', placeItems: 'center', p: 3, textAlign: 'center', color: 'text.secondary' }}><Box><Typography fontWeight={700}>{children}</Typography><Typography variant="caption">Chart data will appear when your property starts receiving bookings.</Typography></Box></Box>; }
 
 function PartnerDashboard() {
-  const partner = getActivePartner(); const firstName = partner?.fullName?.trim().split(/\s+/)[0] || 'Partner'; const greetingName = firstName.charAt(0).toUpperCase() + firstName.slice(1); const properties = getProperties(); const property = properties[0]; const rooms = property?.rooms || []; const bookings = getBookings(); const payments = getPayments(); const approved = property?.status === 'Approved';
+  const partner = useSelector((state) => state.auth.partner); const [dashboard, setDashboard] = useState(null); const [dashboardError, setDashboardError] = useState('');
+  useEffect(() => { getPartnerDashboard().then(setDashboard).catch((error) => setDashboardError(error.response?.data?.message || 'Dashboard data could not be loaded. Please try again.')); }, []);
+  const firstName = partner?.fullName?.trim().split(/\s+/)[0] || 'Partner'; const greetingName = firstName.charAt(0).toUpperCase() + firstName.slice(1); const property = dashboard?.property || null; const properties = property ? [property] : []; const rooms = property?.rooms || emptyRows; const bookings = dashboard?.bookings || emptyRows; const payments = dashboard?.payments || emptyRows; const totals = dashboard?.totals || {}; const approved = property?.status === 'Approved';
   const roomStatus = (room) => !approved ? 'Under Review' : room.status === 'Under Review' ? (room.available ? 'Available' : 'Inactive') : room.status || (room.available ? 'Available' : 'Inactive');
   const roomCounts = rooms.reduce((counts, room) => { const status = roomStatus(room); counts[status] = (counts[status] || 0) + 1; return counts; }, {});
   const paid = payments.filter((payment) => ['Completed', 'Paid'].includes(payment.status)); const earnings = paid.reduce((sum, payment) => sum + Number(payment.netAmount || 0), 0);
   const pendingBookings = bookings.filter((booking) => ['New', 'Pending'].includes(booking.status)).length;
-  const trend = useMemo(() => bookings.reduce((items, booking) => { const day = booking.bookingDate || booking.checkIn || 'Recent'; const label = day.split(',')[0]; const item = items.find((entry) => entry.day === label); if (item) { item.bookings += 1; item.revenue += Number(booking.amount || 0); } else items.push({ day: label, bookings: 1, revenue: Number(booking.amount || 0) }); return items.slice(-7); }, []), [bookings]);
+  const trend = bookings.reduce((items, booking) => { const day = booking.bookingDate || booking.checkIn || 'Recent'; const label = day.split(',')[0]; const item = items.find((entry) => entry.day === label); if (item) { item.bookings += 1; item.revenue += Number(booking.amount || 0); } else items.push({ day: label, bookings: 1, revenue: Number(booking.amount || 0) }); return items.slice(-7); }, []);
   const roomChart = Object.entries(roomCounts).map(([name, value]) => ({ name, value }));
   const profileValues = [property?.business?.name, property?.business?.owner, property?.business?.email, property?.business?.phone, property?.location?.address1, property?.location?.city, property?.location?.state, property?.images?.length, rooms.length, property?.pricing?.oneHour];
   const profileCompleteness = Math.round((profileValues.filter(Boolean).length / profileValues.length) * 100);
@@ -31,20 +35,23 @@ function PartnerDashboard() {
   const submittedDate = property?.submittedAt ? new Date(property.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
   const timelineActive = approved ? 3 : 1;
   const statistics = [
-    ['Total Properties', properties.length, 'Saved to this partner account', '#172D50', <AddHomeWorkRoundedIcon />],
-    ['Total Rooms', rooms.length, 'Configured for this property', '#7655D9', <KingBedRoundedIcon />],
-    ['Available Rooms', roomCounts.Available || 0, 'Ready for hourly bookings', '#269B72', <KingBedRoundedIcon />],
+    ['Total Properties', totals.properties ?? properties.length, 'Saved to this partner account', '#172D50', <AddHomeWorkRoundedIcon />],
+    ['Total Rooms', totals.rooms ?? rooms.length, 'Configured for this property', '#7655D9', <KingBedRoundedIcon />],
+    ['Available Rooms', totals.availableRooms ?? roomCounts.Available ?? 0, 'Ready for hourly bookings', '#269B72', <KingBedRoundedIcon />],
     ['Occupied Rooms', roomCounts.Occupied || 0, 'Currently checked in', '#E58A16', <KingBedRoundedIcon />],
-    ['Pending Rooms', roomCounts['Under Review'] || roomCounts.Pending || 0, 'Awaiting property approval', '#E58A16', <KingBedRoundedIcon />],
-    ['Total Bookings', bookings.length, 'Across your properties', '#172D50', <EventAvailableRoundedIcon />],
+    ['Pending Rooms', totals.pendingRooms ?? roomCounts['Under Review'] ?? roomCounts.Pending ?? 0, 'Awaiting property approval', '#E58A16', <KingBedRoundedIcon />],
+    ['Total Bookings', totals.bookings ?? bookings.length, 'Across your properties', '#172D50', <EventAvailableRoundedIcon />],
     ['Pending Bookings', pendingBookings, 'Awaiting partner action', '#7655D9', <EventAvailableRoundedIcon />],
-    ['Total Revenue', money(earnings), 'From completed payouts', '#269B72', <PaymentsRoundedIcon />],
+    ['Total Revenue', money(totals.revenue ?? earnings), 'From completed payouts', '#269B72', <PaymentsRoundedIcon />],
   ];
 
   return <PartnerLayout><Box>
+    {dashboardError && <Alert severity="error" sx={{ mb: 2 }}>{dashboardError}</Alert>}
+    {!dashboard && !dashboardError && <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, color: 'text.secondary' }}><CircularProgress size={18} /> Loading your partner dashboard…</Box>}
     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { sm: 'center' }, flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mb: 3 }}><Box><Typography className="eyebrow">ROOMLY PARTNER OVERVIEW</Typography><Typography variant="h4" sx={{ mt: .5 }}>Welcome, {greetingName}!</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>Manage your property, rooms and bookings from one place.</Typography></Box><Button component={RouterLink} to="/partner/rooms" variant="contained" startIcon={<KingBedRoundedIcon />}>Room setup</Button></Box>
 
-    {!approved && <Alert severity="info" sx={{ mb: 2.5 }}>Your partner workspace is ready to use. Customer bookings will become available after your property is approved.</Alert>}
+    {dashboard && !property && <Alert severity="info" sx={{ mb: 2.5 }}>No property has been submitted yet. Start onboarding to add your first property.</Alert>}
+    {dashboard && property && !approved && <Alert severity="info" sx={{ mb: 2.5 }}>Your partner workspace is ready to use. Customer bookings will become available after your property is approved.</Alert>}
 
     <Paper sx={{ overflow: 'hidden', mb: 2.5 }}><Grid container><Grid item xs={12} md={4}><Box component="img" src={cover?.dataUrl || cover?.previewUrl || 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?auto=format&fit=crop&w=900&q=80'} alt={property?.business?.name || 'Hotel property'} sx={{ width: '100%', height: { xs: 220, md: '100%' }, minHeight: 225, objectFit: 'cover', display: 'block' }} /></Grid><Grid item xs={12} md={8}><Box sx={{ p: { xs: 2.5, md: 3.5 } }}><Stack direction="row" spacing={1} alignItems="center"><Chip size="small" color={statusColor(property?.status)} label={property?.status === 'Pending Approval' ? 'Application under review' : property?.status || 'Onboarding'} /><Typography variant="caption" color="text.secondary">{property?.business?.propertyType || 'Property type not set'}</Typography></Stack><Typography variant="h5" fontWeight={800} sx={{ mt: 1.5 }}>{property?.business?.name || 'Your property name'}</Typography><Typography color="text.secondary" sx={{ mt: .5 }}>{[property?.location?.address1, property?.location?.city, property?.location?.state, property?.location?.pincode].filter(Boolean).join(', ') || 'Add your property location during onboarding'}</Typography><Grid container spacing={2} sx={{ mt: .7 }}><Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Application reference</Typography><Typography fontWeight={800}>{property?.reference || '—'}</Typography></Grid><Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Submitted</Typography><Typography fontWeight={700}>{submittedDate}</Typography></Grid><Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Rooms</Typography><Typography fontWeight={700}>{rooms.length}</Typography></Grid><Grid item xs={6} sm={3}><Typography variant="caption" color="text.secondary">Contact</Typography><Typography fontWeight={700}>{property?.business?.phone || '—'}</Typography></Grid></Grid></Box></Grid></Grid></Paper>
 

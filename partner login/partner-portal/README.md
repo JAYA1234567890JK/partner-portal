@@ -1,5 +1,17 @@
 # Getting Started with Create React App
 
+## Run with the Roomly API
+
+Start and configure the backend first using `../../backend/README.md`, and apply the Prisma migrations. In this folder, configure the API URL and start CRA:
+
+```powershell
+Copy-Item .env.example .env.local
+npm install
+npm start
+```
+
+The default `REACT_APP_API_URL` is `http://localhost:5000/api`. The backend must allow the frontend origin (`http://localhost:3000`) and browser requests use credentialed HttpOnly cookies. No JWT is stored in browser storage.
+
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
 ## Available Scripts

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { Avatar, Badge, Box, Breadcrumbs, Button, Divider, Drawer, IconButton, InputBase, List, ListItemButton, ListItemIcon, ListItemText, Menu, MenuItem, Toolbar, Typography, useMediaQuery } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import MenuRoundedIcon from '@mui/icons-material/MenuRounded';
@@ -21,7 +22,8 @@ import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded';
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import Brand from '../components/common/Brand';
-import { getActivePartner, getPartnerStatus, getProperties, setActiveEmail } from '../services/partnerData';
+import { signOutPartner } from '../redux/slices/authSlice';
+import { getProperties } from '../services/partnerApi';
 
 const expandedWidth = 260;
 const items = [
@@ -39,9 +41,10 @@ const items = [
 ];
 
 function PartnerLayout({ children }) {
-  const theme = useTheme(); const mobile = useMediaQuery(theme.breakpoints.down('md')); const [drawerOpen, setDrawerOpen] = useState(false); const [collapsed, setCollapsed] = useState(false); const [menuAnchor, setMenuAnchor] = useState(null); const location = useLocation(); const navigate = useNavigate();
-  const partner = getActivePartner(); const property = getProperties()[0]; const status = getPartnerStatus(); const activeItem = items.find((item) => item[1] === location.pathname); const pageTitle = activeItem?.[0] || 'Dashboard'; const drawerWidth = collapsed ? 82 : expandedWidth;
-  function logout() { setActiveEmail(''); navigate('/partner/login'); }
+  const theme = useTheme(); const mobile = useMediaQuery(theme.breakpoints.down('md')); const [drawerOpen, setDrawerOpen] = useState(false); const [collapsed, setCollapsed] = useState(false); const [menuAnchor, setMenuAnchor] = useState(null); const [property, setProperty] = useState(null); const location = useLocation(); const navigate = useNavigate(); const dispatch = useDispatch();
+  const partner = useSelector((state) => state.auth.partner); const status = property?.status === 'Approved' ? 'approved' : 'pending'; const activeItem = items.find((item) => item[1] === location.pathname); const pageTitle = activeItem?.[0] || 'Dashboard'; const drawerWidth = collapsed ? 82 : expandedWidth;
+  useEffect(() => { getProperties().then((properties) => setProperty(properties[0] || null)).catch(() => setProperty(null)); }, []);
+  function logout() { dispatch(signOutPartner()).finally(() => navigate('/partner/login', { replace: true })); }
   const navList = <Box sx={{ width: mobile ? expandedWidth : drawerWidth, height: '100%', display: 'flex', flexDirection: 'column', bgcolor: '#172D50', color: '#fff', transition: 'width .2s' }}>
     <Toolbar sx={{ px: collapsed && !mobile ? 2 : 2.5, minHeight: '78px !important', justifyContent: collapsed && !mobile ? 'center' : 'flex-start' }}><Brand light compact={collapsed && !mobile} /></Toolbar>
     {property && (!collapsed || mobile) && <Box sx={{ px: 2, py: 1.4, mx: 1.5, mb: 1, borderRadius: 2, bgcolor: 'rgba(255,255,255,.08)' }}><Typography variant="caption" sx={{ color: 'rgba(255,255,255,.6)' }}>ACTIVE PROPERTY</Typography><Typography fontWeight={800} noWrap>{property.business?.name || 'Your property'}</Typography><Typography variant="caption" sx={{ color: status === 'approved' ? '#65D4A4' : '#FFC46B' }}>● {status === 'approved' ? 'Approved and live' : 'Application under review'}</Typography></Box>}
