@@ -20,6 +20,11 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Email and password are required.').max(128),
 });
 
+const adminLoginSchema = z.object({
+  adminId: z.string().trim().min(3, 'Enter your Admin ID.').max(64).regex(/^[a-zA-Z0-9._-]+$/, 'Admin ID contains unsupported characters.').transform((value) => value.toLowerCase()),
+  password: z.string().min(1, 'Admin ID and password are required.').max(128),
+});
+
 function validateBody(schema) {
   return (req, res, next) => {
     const result = schema.safeParse(req.body);
@@ -35,4 +40,4 @@ function validateBody(schema) {
   };
 }
 
-module.exports = { registerSchema, loginSchema, validateBody };
+module.exports = { registerSchema, loginSchema, adminLoginSchema, validateBody };

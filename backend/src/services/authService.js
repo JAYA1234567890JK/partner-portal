@@ -101,6 +101,36 @@ async function login(data) {
   return { token: createAccessToken(user), user: { id: user.id, role: user.role } };
 }
 
+async function loginAdmin(data) {
+  const prisma = getDatabase();
+  const user = await prisma.user.findUnique({ where: { adminId: data.adminId } });
+  const hash = user ? user.passwordHash : '$2b$12$9u2nMfOt3OPAQqbfrGqxCOb1MiLe02f/d8IUT1qM0WHp/xWsLS6bO';
+  const passwordMatches = await bcrypt.compare(data.password, hash);
+  if (!user || !user.isActive || user.role !== 'ADMIN' || !passwordMatches) {
+    const error = new Error('Invalid Admin ID or password.');
+    error.status = 401;
+    throw error;
+  }
+  return {
+    token: createAccessToken(user),
+    user: { id: user.id, fullName: user.fullName, adminId: user.adminId, role: user.role },
+  };
+}
+
+async function getCurrentAdmin(userId) {
+  const prisma = getDatabase();
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, fullName: true, adminId: true, role: true, isActive: true },
+  });
+  if (!user || !user.isActive || user.role !== 'ADMIN') {
+    const error = new Error('Authentication required.');
+    error.status = 401;
+    throw error;
+  }
+  return { id: user.id, fullName: user.fullName, adminId: user.adminId, role: user.role };
+}
+
 async function getCurrentPartner(userId) {
   const prisma = getDatabase();
   const user = await prisma.user.findUnique({
@@ -150,4 +180,4 @@ function clearAuthCookie(res) {
   res.clearCookie('roomly_access', getAuthCookieOptions());
 }
 
-module.exports = { registerPartner, login, getCurrentPartner, setAuthCookie, clearAuthCookie };
+module.exports = { registerPartner, login, loginAdmin, getCurrentPartner, getCurrentAdmin, setAuthCookie, clearAuthCookie };

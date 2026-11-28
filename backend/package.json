@@ -12,7 +12,8 @@
         "prisma:studio": "prisma studio",
         "prisma:migrate:dev": "prisma migrate dev",
         "prisma:migrate:deploy": "prisma migrate deploy",
-        "db:verify": "node scripts/verifyDatabase.js"
+        "db:verify": "node scripts/verifyDatabase.js",
+        "admin:create": "node scripts/createAdmin.js"
     },
     "dependencies": {
         "@prisma/client": "^6.0.0",

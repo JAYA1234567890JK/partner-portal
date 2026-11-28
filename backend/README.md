@@ -79,6 +79,23 @@ Authenticated PARTNER requests:
 
 Every operation verifies the logged-in partner owns the target property or its room. For a Postman multipart request, add one `images` file row per image and a text `category` field (for example `Bedroom`). A successful upload response contains the image rows only after Supabase upload and PostgreSQL persistence both succeed.
 
+## Admin Portal and property review
+
+The admin API is restricted to verified users with the `ADMIN` role. Partner registration cannot grant this role. Run `npm run admin:create` from the backend directory to provision the first administrator. By default it creates Admin ID `roomlyadmin` and prints a cryptographically generated one-time password. You can set `BOOTSTRAP_ADMIN_ID`, `BOOTSTRAP_ADMIN_NAME`, and optionally `BOOTSTRAP_ADMIN_PASSWORD` (minimum 12 characters). `BOOTSTRAP_ADMIN_EMAIL` is optional and is an internal database field only; it is not used for login. Run this after deploying migrations and store the one-time password securely.
+
+Admin endpoints:
+
+- `POST /api/auth/admin/login` with `{ "adminId": "roomlyadmin", "password": "..." }` and `GET /api/auth/admin/me`
+- `GET /api/admin/overview`
+- `GET /api/admin/applications?status=PENDING_REVIEW` (also accepts `APPROVED`, `REJECTED`, and `ALL`)
+- `GET /api/admin/properties?status=ALL`
+- `GET /api/admin/partners`
+- `PATCH /api/admin/properties/:propertyId/status` with `{ "status": "APPROVED" }` or `{ "status": "REJECTED", "reviewNote": "..." }`
+
+The review migration adds a review note, timestamp, and reviewing admin relation. Apply committed migrations with `npm run prisma:migrate:deploy`; this never resets the database. An approval/rejection is returned by partner property/dashboard APIs, and the Partner Portal refreshes its dashboard on focus and every 30 seconds. Bookings remain empty until a booking model and endpoints are implemented.
+
+For local admin development on `http://localhost:3002`, add that origin to `FRONTEND_URL`. For production, set `FRONTEND_URL` to the comma-separated exact origins of the Partner and Admin frontends (no API paths or trailing slashes). The Admin CRA app reads `REACT_APP_API_URL`; it must contain the backend API base URL ending in `/api`.
+
 Restart the backend after configuring `.env`. For local work, `http://localhost:3000` is the default frontend origin and the default access-token lifetime is 15 minutes.
 
 ### Postman examples
